@@ -51,6 +51,22 @@ func (cache *Cache) getItem(key string) (*item, bool, bool) {
 	return item, exists, expirationNotification
 }
 
+
+//获取 item， 但是不更新时间戳    
+func (cache *Cache) getItem2(key string) (*item, bool, bool) {
+	item, exists := cache.items[key]
+	if !exists || item.expired() {
+		return nil, false, false
+	}
+
+	expirationNotification := false
+	if cache.expirationTime.After(time.Now().Add(item.ttl)) {
+		expirationNotification = true
+	}
+	return item, exists, expirationNotification
+}
+    
+    
 func (cache *Cache) startExpirationProcessing() {
 	timer := time.NewTimer(time.Hour)
 	for {
@@ -185,7 +201,7 @@ func (cache *Cache) SetWithTTL(key string, data interface{}, ttl time.Duration) 
 // Every lookup, also touches the item, hence extending it's life
 func (cache *Cache) Get(key string) (interface{}, bool) {
 	cache.mutex.Lock()
-	item, exists, triggerExpirationNotification := cache.getItem(key)
+	item, exists, triggerExpirationNotification := cache.getItem2(key)
 
 	var dataToReturn interface{}
 	if exists {
@@ -197,7 +213,7 @@ func (cache *Cache) Get(key string) (interface{}, bool) {
 	}
 	return dataToReturn, exists
 }
-
+    
 func (cache *Cache) Remove(key string) bool {
 	cache.mutex.Lock()
 	object, exists := cache.items[key]
